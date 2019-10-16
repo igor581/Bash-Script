@@ -1,0 +1,8 @@
+#! /bin/bash
+
+useradd ansible
+
+
+echo "TMP=/var/log" >> ~/ansile/.bashrc
+echo "TMPDIR=/tmp" >> ~/ansible/.bashrc
+
