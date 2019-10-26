@@ -105,3 +105,11 @@ sed -i '/SELINUX=permissive/d' /etc/selinux/config
 sed -i '/disabled /aSELINUX=enforcing' /etc/selinux/config
 # sed -i '/#     disabled - No SELinux policy is loaded./aSELINUX=enforcing' /etc/selinux/config
 # echo "SELINUX=enforcing" >> /etc/selinux/config
+
+# 18. Adjust the size of logical volume named vol to 230 MB (instead of 182MB)
+lvdisplay
+lvextend -L 230MB -r /dev/qgroup/v0
+lvdisplay
+
+
+
