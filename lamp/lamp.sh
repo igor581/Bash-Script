@@ -29,7 +29,7 @@ service iptables restart
 chkconfig httpd on
 
 # check if the new port 80 is opened
-sleep 5 
+sleep 10 
 echo "Checking all the open ports on this server"
 iptables -nL
 }
@@ -51,6 +51,25 @@ function sed_root_password(){
 echo
 echo "It is the set MySQL root password, please follow the steps and use '12345' as default root password.............."
 sleep 10
+
+cat << END
+
+*************************************************************************************************
+*             ** Please Follow this Instructions To Setup MySQL Rooot Password **               *
+* 1 >> Use 12345 as MySQL root password                                                         *
+* 2 >> Enter current password for root (enter for none): hit enter because we need to set it up *
+* 3 >> Set root password? [Y/n]: y                                                              *
+* 4 >> New password: 12345                                                                      *
+* 5 >> Re-enter new password: 12345                                                             *
+* 6 >> Remove anonymous users? [Y/n] y                                                          *
+* 7 >> Disallow root login remotely? [Y/n] y                                                    *
+* 8 >> Remove test database and access to it? [Y/n] y                                           *
+* 9 >> Reload privilege tables now? [Y/n] y                                                     *
+*************************************************************************************************
+
+END
+
+
 mysql_secure_installation
 }
 
@@ -109,7 +128,7 @@ sed -i "s/database_name_here/webserver/" /var/www/html/wp-config.php
 sed -i "s/username_here/oracle/" /var/www/html/wp-config.php
 sed -i "s/password_here/school1/" /var/www/html/wp-config.php
 
-service httpd restart.
+service httpd restart
 
 }
 
