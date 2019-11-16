@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#Description: This script will check if the exist first. If the user does not exist, it will create the new user and if the user exit already, it should the user exist
+#Description: This script will check if the exist first. If the user does not exist, it will create the new user and if the user exit already, it should say the user exist already nothing to do
 
 # Author: Tia M
 # Date: November 12, 2019

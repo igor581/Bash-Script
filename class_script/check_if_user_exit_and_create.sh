@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# add user tom and check the user was added successfully
+# add user tom and check if the user tom was added successfully
 
 user=tom
 

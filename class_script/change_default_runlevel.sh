@@ -4,7 +4,7 @@
 # Date: November 11 , 2019
 # Modified on:             by:
 
-#write a script that will check the default runlevel on your systemi centos 6. if it is equal 5, then the script should change it to 3 but if it is not 5 , the script should just the script shouldjust display the default runlevel
+#write a script that will check the default runlevel on your system centos 6. if it is equal 5, then the script should change it to 3 but if it is not equal to 5, the script should script should just display the default runlevel
 
 default=`tail -n1 /etc/inittab |cut -d: -f2`
 
