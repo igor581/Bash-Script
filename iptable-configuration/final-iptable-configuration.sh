@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#Author Tia M  November 2017
+#Author Tia M  November 2019
 #Modify:       by:
 
 #------------------------------------------------------------------------------------------------------#
@@ -46,16 +46,19 @@ fi
 
 ## Check if the port exit or not and configure the port if the port does not exit
 
-port=`cat /etc/sysconfig/iptables |grep $1`
+cd /etc/sysconfig
+file=iptables
 
-if [[ $port -eq 0 ]] 2> /dev/null
-then
-    sed -i "/:OUTPUT ACCEPT/a \-A INPUT -m state --state NEW -m $2 -p $2 --dport $1 -j ACCEPT" /etc/sysconfig/iptables
-   
-else
+if [[ $(grep "$1" $file) ]] ; then
+
     echo "Port $1 exit already. Nothing do to"
-    exit 5
-         
-fi  
-
-
+else
+    sed -i "/:OUTPUT ACCEPT/a \-A INPUT -m state --state NEW -m $2 -p $2 --dport $1 -j ACCEPT" /etc/sysconfig/iptables
+    
+    # start the firewall
+    echo "Restarting the firewall, please wait ......"
+    sleep 5
+    echo " "
+    service iptables restart
+    
+fi     
