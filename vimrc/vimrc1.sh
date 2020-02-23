@@ -42,7 +42,7 @@ filetype indent on
 # No textwidth limit
 set textwidth=0
 
-#To enable auto-indent (se ai)
+#To enable auto-indent (set ai)
 set autoindent
 
 #even better autoindent (e.g. add indent after '{')
