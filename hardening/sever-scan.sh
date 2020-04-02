@@ -47,7 +47,8 @@ cat << END
 *      SET PASS_MIN_LEN TO 0                                                *
 *      SET PASS_WARN_AGE TO 14 DAYS                                         *
 *  17- Check if the grub password is set. If not, set the grub password     *
-*___________________________________________________________________________*
+*      The passowrd shoold be "redhat"                                      *
+____________________________________________________________________________*
 
 
 BELOW IS THE RESULT OF WHAT WAS ON THE NEW AND WAS MODIFIED ON THAT NEW INSTALLED SERVER
@@ -405,6 +406,16 @@ else
     echo "16- Password aging was not set and it now set" >> $LOG
 fi
 
-
-### 17- Check if the grub password is set. If not, set the grub password     
-                                                                        
+ClassLinux!#
+### 17- Check if the grub password is set. If not, set the grub password. The passowrd shoold be "redhat"     
+# grub-crypt: to encrypt the grub password. make the that you encrypt with SHA512
+# vim /etc/grub.conf 
+# password --encrypted end put the encrypted password below hiddenmenu in this file
+GRUB_PASSWORD=`cat /etc/grub.conf |grep "^password --encrypted" |awk '{print$1}'`
+if [ "$GRUB_PASSWORD" = "password" ]
+then
+    echo "The grub password is already set."
+else
+    sed -i '/^hiddenmenu/apassword --encrypted $6$Jdv0vS3HBXAbvY.v$oa9rNZYIQSgQscQZjOeoPHQlIM49qb4Ge0bFCMeWqebMm0vAV9yyB5Rei.8Esyn.3xSXqp09ak1AQG.yTqiXG.' /etc/grub.conf
+    echo "The grub password was not set and it is now set."
+fi
