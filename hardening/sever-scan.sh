@@ -25,30 +25,36 @@ cat << END
     BELOW ARE ALL TASK TO BE CHECK ON NEW SERVERS AND CHANGE SOME AS NEED
  ___________________________________________________________________________	        
 *  1- Check if the CPU is at least 4000                                     *
-*  2- check if the user admin exit on the server, if not create a user      *
-*     admin with the password=redhat                                        *
-*  3- Check if the memory is at least 8G                                    *
-*  4- The Kernel version need to be at least 3 and above                    *
-*  5- check if the root file system is not more than 10%                    *
-*  6- Check if selinux is set to enforcing, if not enforced it              *
-*  7- Check if the OS version is CentOs 6 or 7                              *
-*  8- Check if the default runlevel is 3. If not, set it to 3.              *
-*  9- Check if cron.allow is present on the server. If not, create it.      *  
-*  10- Check if port 22 is open                                             *
-*  11- Change the default ssh port to 29                                    *
-*  12- Check if port 8080 is open. If not open port 8080                    *
-*  13- check if port 80 is open on the server. If not, open port 80         *
-*  14- Check if the password hash is SHA512. If not, change to SHA512       *
-*  15- Check if password authentication is set to yes in ssh_config file.   *
+*  2- check if the user admin exists on the server, if not create a user    *
+*     admin with the password=redhat and give him root privilege            *
+*  3- Check if a group helpdesk exists on the server. If not,               *
+*      create a group helpdesk, add paul, John, tom (password = "redhat")   *
+*      and give them root privilege to reset other users' passwords only.
+*      NB: make sure that you expire users account
+*  4- Check if the memory is at least 8G                                    *
+*  5- Check the first digit of the  Kernel version is at least 3 and above  *
+*  6- check if the root file system is not more than 10%                    *
+*  7- Check if selinux is set to enforcing, if not enforced it              *
+*  8- Check if the OS version is CentOs 6 or 7                              *
+*  9- Check if the default runlevel is 3. If not, set it to 3.              *
+*  10- Check if cron.allow is present on the server. If not, create it.     *  
+*  11- Check if sshd port 22 is open. if yes close                          *
+*  12- Change the default ssh port to 29                                    *
+*  13- Check if port 8080 is open. If not open port 8080                    *
+*  14- check if port 80 is open on the server. If not, open port 80         *
+*  15- Check if the password hash is SHA512. If not, change to SHA512       *
+*  16- Check if password authentication is set to yes in ssh_config file.   *
 *      If no, set it to yes                                                 *
-*  16- Check if the password aging is enforced. If not, enforced            *
+*  17-  Check if the server will require a root for maintenance mode.       *
+*       If not, set it to require root password for maintenance mode        *
+*  18- Check if the password aging is enforced. If not, enforced            *
 *      SET PASS_MAX_DAYS TO 90 DAYS                                         *
 *      SET PASS_MIN_LEN TO 8                                                *
 *      SET PASS_MIN_LEN TO 0                                                *
 *      SET PASS_WARN_AGE TO 14 DAYS                                         *
-*  17- Check if the grub password is set. If not, set the grub password     *
+*  19- Check if the grub password is set. If not, set the grub password.    *
 *      The passowrd shoold be "redhat"                                      *
-____________________________________________________________________________*
+*___________________________________________________________________________*
 
 
 BELOW IS THE RESULT OF WHAT WAS ON THE NEW AND WAS MODIFIED ON THAT NEW INSTALLED SERVER
@@ -57,7 +63,15 @@ END
 tasks >> $LOG
  
 
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function CPU() {
 ### 1- Check if the CPU is at least 4000
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
+
 CPU=`lscpu |grep "CPU MHz:" |awk '{print$3}'`
 if [[ $CPU -lt 4000 ]] > /dev/null 2>&1 
 then 
@@ -65,65 +79,175 @@ then
 else
     echo -e "1- CPU CHECK PASSED. The CPU size on this server is $CPU\n" >> $LOG
 fi
- 
+}
+#CPU
 
-### 2- check if the user admin exit on the server, if not create a user ansadmin with the password=redhat
+
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function ADMIN() {
+### 2- check if the user admin exists on the server, if not create a user
+    # admin with the password=redhat and give him root privilege   
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 id admin > /dev/null 2>&1 
 if [[ $? -eq 0  ]]
 then 
     echo -e "2- The Use admin exists already on this server \n" >> $LOG
+    cat /etc/passwd | grep ^admin >> $LOG
+    cat /etc/sudoers | grep ^admin >> $LOG
+    cat /etc/shadow | grep ^admin >> $LOG
 else
-    useradd admin > /dev/null 2>&1 
+    useradd admin 
     password=admin@redhat
     echo $password | passwd --stdin admin > /dev/null 2>&1 
     sed -i '/%wheel/aadmin  ALL=(ALL)       ALL' /etc/sudoers
+
     echo -e "2- Ansadmin user was missing but it now created and added in the sudoers file\n" >> $LOG
+    cat /etc/passwd | grep ^admin >> $LOG
+    cat /etc/sudoers | grep ^admin >> $LOG
+    cat /etc/shadow | grep ^admin >> $LOG
 fi
+}
+ADMIN
 
 
-### 3- Check if the memory is at least 8G
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function HELPDESK() {
+## 3- Check if a group helpdesk exists on the server. If not,               
+      # create a group helpdesk, add paul, John, tom (password = "redhat")   
+      # and give them root privilege to reset other users' passwords only. 
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log* 
+
+GROUP_HELPDESK=`cat /etc/group |grep helpdesk |awk -F: '{print$1}'`
+if [ "$GROUP_HELPDESK" = "helpdesk" ]
+then
+    echo -e "3- Group Helpdesk exists already\n" >> $LOG
+    cat /etc/group |grep helpdesk >> $LOG
+    cat /etc/sudoers |grep helpdesk >> $LOG
+    cat /etc/shadow |egrep -i 'paul|tom|John' >> $LOG
+else
+    groupadd helpdesk 
+
+    cd /tmp
+    echo "paul" >> users.txt
+    echo "john" >> users.txt
+    echo "tom" >> users.txt
+
+    username=$(cat /tmp/users.txt)
+    password=$username@redhat
+
+    for users in $username
+    do
+    useradd $users
+    echo $password | passwd --stdin $users
+    passwd --expire $users
+    usermod -aG helpdesk $users
+    done
+
+    sed -i '/%wheel/a%helpdesk ALL=/usr/bin/passwd' /etc/sudoers
+    rm -rf /tmp/users.txt
+
+    echo -e "3- Group helpdesk was missing and it is know added on this server\n" >> $LOG
+    cat /etc/group |grep helpdesk >> $LOG
+    cat /etc/sudoers |grep helpdesk >> $LOG
+    cat /etc/shadow |egrep -i 'paul|tom|John' >> $LOG
+fi
+}
+HELPDESK
+
+
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function MEMORY_CHECK() {
+### 4- Check if the memory is at least 8G
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log* 
+
 MEMORY=`free -m |grep "Mem:" |awk '{print$2}'`
 if [[ $MEMORY -le 8096 ]]
 then
-    echo -e "3- MEMORY CHECK FAILED. We have only $MEMORY instead of 8096\n" >> $LOG
+    echo -e "4- MEMORY CHECK FAILED. We have only $MEMORY instead of 8096\n" >> $LOG
 else
-    echo -e "3- MEMORY CHECK PASSED and the total Memory is $MEMORY on this server\n" >> $LOG
+    echo -e "4- MEMORY CHECK PASSED and the total Memory is $MEMORY on this server\n" >> $LOG
 fi
- 
+}
+MEMORY_CHECK
 
-### 4- The Kernel version need to be at least 3 and above
+
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function KERNEL() {
+### 5- Check the first digit of the  Kernel version is at least 3 and above
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 KERNEL_VERSION=`uname -r |cut -d. -f1-2`
 if [[ $KERNEL_VERSION -lt 3 ]] > /dev/null 2>&1 
 then
-    echo -e "4- KERNEL CHECK FAILED. The kernel version on the server is $KERNEL_VERSION\n" >> $LOG
+    echo -e "5- KERNEL CHECK FAILED. The kernel version on the server is $KERNEL_VERSION\n" >> $LOG
 else
-    echo -e "4- KERNEL CHECK PASSED and The kernel version on the server is $KERNEL_VERSION\n" >> $LOG
+    echo -e "5- KERNEL CHECK PASSED and The kernel version on the server is $KERNEL_VERSION\n" >> $LOG
 fi
- 
-### 5- check if the root file system is not more than 10%
+}
+KERNEL
+
+
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function FILE_SYSTEM() {
+### 6- check if the root file system is not more than 10%
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 ROOT_FILE=`df -mh |grep "/dev/" |head -1 |awk '{print$5}' |awk -F% '{print$1}'`
 if [[ $ROOT_FILE -le 10 ]] 
 then
-    echo -e "5- THE ROOT FILE SYSTEM PASSED and the percentage of the root file system on the server is $ROOT_FILE%\n" >> $LOG
+    echo -e "6- THE ROOT FILE SYSTEM PASSED and the percentage of the root file system on the server is $ROOT_FILE%\n" >> $LOG
 else
-    echo -e "5- THE ROOT FILE SYSTEM FAILED and the percentage of the root file system on the server is $ROOT_FILE%\n" >> $LOG
+    echo -e "6- THE ROOT FILE SYSTEM FAILED and the percentage of the root file system on the server is $ROOT_FILE%\n" >> $LOG
 fi
+}
+#FILE_SYSTEM
 
 
-### 6- Check if selinux is set to enforcing, if not enforced it
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function SELINUX() {
+### 7- Check if selinux is set to enforcing, if not enforced it
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 SELINUX=`cat /etc/sysconfig/selinux |grep ^SELINUX |head -1 |awk -F= '{print$2}'`
 if [[ $SELINUX == "enforcing" ]]
 then
-    echo -e "6- SELINUX CHECK PASSED\n" >> $LOG
+    echo -e "7- SELINUX CHECK PASSED\n" >> $LOG
 else
     sed -i '/^SELINUX/d' /etc/sysconfig/selinux
     sed -i '/#     disabled - No SELinux policy is loaded./aSELINUX=enforcing' /etc/sysconfig/selinux
-    echo -e "6- SELINUX CHECK FAILED. Selinux was set to $SELINUX mode and it now set to ENFORCING mode\n " >> $LOG
+    echo -e "7- SELINUX CHECK FAILED. Selinux was set to $SELINUX mode and it now set to ENFORCING mode\n " >> $LOG
 fi
+}
+#SELINUX
 
 
-### 7- Check if the OS version is CentOs 6 or 7
-# NB: This function will not works
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
 function OS {
 OS_VERSION6=`cat /etc/*release |head -1 |awk '{print$3}'`
 OS_VERSION7=`cat /etc/*release |grep "CentOS Linux release" |head -1 |awk '{print$4}' |cut -d. -f1-2`
@@ -138,24 +262,45 @@ else
 fi
 }
 
+
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function OS_VERSION() {
+### 8- Check if the OS version is CentOs 6 or 7
+# NB: This function will not works
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 OS_VERSION=`rpm -qf /etc/redhat-release |awk -F- '{print$3}'`
 if [[ $OS_VERSION -le 7 ]]
 then
-    echo -e "7- The OS Version is CentOs $OS_VERSION\n" >> $LOG
+    echo -e "8- The OS Version is CentOs $OS_VERSION\n" >> $LOG
 elif [[ $OS_VERSION -ge 7 ]]
 then
-    echo -e "7- The OS Version is CentOs $OS_VERSION\n" >> $LOG
+    echo -e "8- The OS Version is CentOs $OS_VERSION\n" >> $LOG
 else
-    echo -e "7- OS VERSION CHECK FAILED\n" >> $LOG
+    echo -e "8- OS VERSION CHECK FAILED\n" >> $LOG
 fi
+}
+#OS_VERSION
 
 
-### 8- Check if the default runlevel is 3. If not, set it to 3.
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function RUNLEVEL() {
+### 9- Check if the default runlevel is 3. If not, set it to 3.
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 OS_VERSION=`rpm -qf /etc/redhat-release |awk -F- '{print$3}'`
 RUNLEVEL=`runlevel |awk '{print$2}'`
 if [[ $RUNLEVEL -eq 3 ]]
 then 
-    echo -e "8- DEFAULT RUNLEVEL CHECK PASSED. The default runlevel is 3\n" >> $LOG
+    echo -e "9- DEFAULT RUNLEVEL CHECK PASSED. The default runlevel is 3\n" >> $LOG
 elif [[ $OS_VERSION -le 7 ]]
 then
     sed -i '/id:5:initdefault:/d' /etc/inittab
@@ -166,37 +311,66 @@ then
     # systemctl set-default <name of target>.target
     # systemctl set-default graphical.target 
     systemctl set-default multi-user.target
-    echo -e "8- The default Runlevel was $RUNLEVEL, and it was changed the runlevel 3\nAlso, the OS version was Centos $OS_VERSION\n" >> $LOG
+    echo -e "9- The default Runlevel was $RUNLEVEL, and it was changed the runlevel 3\nAlso, the OS version was Centos $OS_VERSION\n" >> $LOG
 else
-    echo "8- Unable to change the default runlevel. Please check the OS version" >> $LOG
+    echo "9- Unable to change the default runlevel. Please check the OS version" >> $LOG
 fi
+}
+#RUNLEVEL
 
 
-### 9- Check if cron.allow is present on the server. If not, create it.
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function CRON.ALLOW() {
+### 10- Check if cron.allow is present on the server. If not, create it.
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 cat /etc/cron.allow > /dev/null 2>&1 
 if [[ $? -eq 0  ]]
 then 
-    echo -e "9- CROW.ALLOW CHECK PASSED\n" >> $LOG
+    echo -e "10- CROW.ALLOW CHECK PASSED\n" >> $LOG
 else
     cd /etc
     touch cron.allow
-    echo -e "9- CROW.ALLOW file was missing and it now created\n" >> $LOG
+    echo -e "10- CROW.ALLOW file was missing and it now created\n" >> $LOG
 fi
+}
+#CRON.ALLOW
 
 
-### 10- Check if port 22 is open 
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function CHECK_PORT22() {
+###  Check if sshd port 22 is open. If yes, close port 22
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 PORT_22=`netstat -ltnp |grep ssh |head -1 |awk '{print$4}' |awk -F. '{print$4}' |cut -d: -f2`
 if [[ $PORT_22 -eq 22 ]]
 then
-    echo -e "10- PORT 22 is opened on this server\n" >> $LOG
+    echo -e "11- PORT 22 is opened on this server\n" >> $LOG
 else
-    echo -e "10- PORT 22 CHECK FAILED\n" >> $LOG
+    echo -e "11- PORT 22 CHECK FAILED\n" >> $LOG
 fi
+}
+#CHECK_PORT22
 
 
-### 11- Change the default ssh port to 29
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+### 12- Change the default ssh port to 29
 # ssh -p 29 root@10.0.0.36
 function CENTOS6() {
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 # && = AND
 # || = OR
 OS_VERSION=`rpm -qf /etc/redhat-release |awk -F- '{print$3}'`
@@ -204,24 +378,29 @@ SSH_PORT=`cat /etc/ssh/sshd_config |grep -i "^port 29"`
 IPTABLES_PORT29=`cat /etc/sysconfig/iptables |grep 29 |awk '{print$12}'`
 if [ "$SSH_PORT" = "port 29" ] && [ $OS_VERSION -eq 6 ] && [ $IPTABLES_PORT29 -eq 29 ]
 then
-    echo -e "11- PORT 29 is already set as SSH default port in /etc/ssh/sshd_config and it open already in the iptables\n" >> $LOG
+    echo -e "12- PORT 29 is already set as SSH default port in /etc/ssh/sshd_config and it open already in the iptables\n" >> $LOG
 else
     sed -i '/#Port 22/a \port 29' /etc/ssh/sshd_config
     service sshd restart
 
     sed -i '/-A INPUT -i lo -j ACCEPT/a \-A INPUT -m state --state NEW -m tcp -p tcp --dport 29 -j ACCEPT' /etc/sysconfig/iptables
     service iptables restart
-    echo -e "11- PORT is now the default SSH port , and it open on the firewall \n" >> $LOG
+    echo -e "12- PORT is now the default SSH port , and it open on the firewall \n" >> $LOG
 fi
 }
 
 function CENTOS7() {
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 OS_VERSION=`rpm -qf /etc/redhat-release |awk -F- '{print$3}'`
 SSH_PORT=`cat /etc/ssh/sshd_config |grep -i "^port 29"`
 IPTABLES_PORT29=`cat /etc/sysconfig/iptables |grep 29 |awk '{print$12}'`
 if [ "$SSH_PORT" = "port 29" ] && [ $OS_VERSION -eq 7 ] && [ $IPTABLES_PORT29 -eq 29 ]
 then
-    echo -e "11- PORT 29 is already set as SSH default port in /etc/ssh/sshd_config and it open already in the iptables\n" >> $LOG
+    echo -e "12- PORT 29 is already set as SSH default port in /etc/ssh/sshd_config and it open already in the iptables\n" >> $LOG
 else
     systemctl stop firewalld
     systemctl disable firewalld
@@ -237,7 +416,7 @@ else
 
     sed -i '/-A INPUT -i lo -j ACCEPT/a \-A INPUT -m state --state NEW -m tcp -p tcp --dport 29 -j ACCEPT' /etc/sysconfig/iptables
     systemctl restart iptables.service
-    echo -e "11- PORT is now the default SSH port , and it open on the firewall \n" >> $LOG
+    echo -e "12- PORT is now the default SSH port , and it open on the firewall \n" >> $LOG
 fi
 }
 
@@ -249,41 +428,52 @@ elif [ $OS_VERSION -eq 6 ]
 then
     CENTOS6
 else
-    echo -e "11- Please check your OS distribution and version.\n" >> $LOG
+    echo -e "12- Please check your OS distribution and version.\n" >> $LOG
 fi
 
 
 
-### 12- Check if port 8080 is open. If not open port 8080 
-### 13- check if port 80 is open on the server. If not, open port 80
+#----------------------------------------------------------------------------------------------------------------------------------------------
+### 13- Check if port 8080 is open. If not open port 8080 
+### 14- check if port 80 is open on the server. If not, open port 80
 
 function IPTABLES_PORT_6() {
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 OS_VERSION=`rpm -qf /etc/redhat-release |awk -F- '{print$3}'`
 IPTABLES_PORT8080=`cat /etc/sysconfig/iptables |grep 8080 |awk '{print$12}'`
 IPTABLES_PORT80=`cat /etc/sysconfig/iptables |grep 80 |awk '{print$12}'`
 if [ $IPTABLES_PORT8080 -eq 8080 ] && [ $IPTABLES_PORT80 -eq 80 ] > /dev/null 2>&1
 then
-    echo -e "12 & 13- PORT 8080 and PORT 80 is already in the iptables\n" >> $LOG
+    echo -e "13 & 14- PORT 8080 and PORT 80 is already in the iptables\n" >> $LOG
 else
     sed -i '/-A INPUT -i lo -j ACCEPT/a \-A INPUT -m state --state NEW -m tcp -p tcp --dport 8080 -j ACCEPT' /etc/sysconfig/iptables
     sed -i '/-A INPUT -i lo -j ACCEPT/a \-A INPUT -m state --state NEW -m tcp -p tcp --dport 80 -j ACCEPT' /etc/sysconfig/iptables
-    echo -e "12 & 13- PORT 8080 and PORT 80 was not opened on the firewall and it know open \n" >> $LOG
+    echo -e "13 & 14- PORT 8080 and PORT 80 was not opened on the firewall and it know open \n" >> $LOG
     service iptables restart
 fi
 }
 
 
 function IPTABLES_PORT_7() {
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 OS_VERSION=`rpm -qf /etc/redhat-release |awk -F- '{print$3}'`
 IPTABLES_PORT8080=`cat /etc/sysconfig/iptables |grep 8080 |awk '{print$12}'`
 IPTABLES_PORT80=`cat /etc/sysconfig/iptables |grep 80 |awk '{print$12}'`
 if [ $IPTABLES_PORT8080 -eq 8080 ] && [ $IPTABLES_PORT80 -eq 80 ]
 then
-    echo -e "12 & 13- PORT 8080 and PORT 80 is already in the iptables\n" >> $LOG
+    echo -e "13 & 14- PORT 8080 and PORT 80 is already in the iptables\n" >> $LOG
 else
     sed -i '/-A INPUT -i lo -j ACCEPT/a \-A INPUT -m state --state NEW -m tcp -p tcp --dport 8080 -j ACCEPT' /etc/sysconfig/iptables
     sed -i '/-A INPUT -i lo -j ACCEPT/a \-A INPUT -m state --state NEW -m tcp -p tcp --dport 80 -j ACCEPT' /etc/sysconfig/iptables
-    echo -e "12 & 13- PORT 8080 and PORT 80 was not opened on the firewall and it know open \n" >> $LOG
+    echo -e "13 & 14- PORT 8080 and PORT 80 was not opened on the firewall and it know open \n" >> $LOG
     systemctl restart iptables.service
 fi
 }
@@ -296,15 +486,24 @@ elif [ $OS_VERSION -eq 6 ]
 then
     IPTABLES_PORT_6
 else
-    echo -e "12 & 13- Please check your OS distribution and version.\n" >> $LOG
+    echo -e "13 & 14- Please check your OS distribution and version.\n" >> $LOG
 fi
 
 
-## 14- Check if the password hash is SHA512. If not, change to SHA512 
+
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function PASSWORD_HASH() {
+## 15- Check if the password hash is SHA512. If not, change to SHA512
+
 # authconfig --passalgo=md5 --update
 # authconfig --passalgo=sha256 --update
 # authconfig --passalgo=sha512 --update
 # cat /etc/login.defs
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
 
 useradd test > /dev/null 2>&1 
 password=admin@test12345
@@ -313,7 +512,7 @@ echo $password | passwd --stdin test > /dev/null 2>&1
 PASSED_HASH=`cat /etc/shadow |grep test |awk -F: '{print$2}' |awk -F$ '{print$2}'`
 if [ $PASSED_HASH -eq 6 ]
 then
-    echo -e  "14- The password HASH was already set to SHA512\n" >> $LOG
+    echo -e  "15- The password HASH was already set to SHA512\n" >> $LOG
     userdel -r test
 else
     authconfig --passalgo=sha512 --update
@@ -324,49 +523,62 @@ else
     do
     passwd --expire $USERS
     done
-    echo -e "14- The password HASH was not SHA512 and it was changed to SHA512. Also all non root users will be forced to update their password because of passowrd HASH change.\n" >> $LOG
+    echo -e "15- The password HASH was not SHA512 and it was changed to SHA512. Also all non root users will be forced to update their password because of passowrd HASH change.\n" >> $LOG
     userdel -r test
     cd /tmp
     rm -rf users.txt
 fi
+}
+#PASSWORD_HASH
 
 
 
-### 15- Check if password authentication is set to yes in ssh_config file. If no, set it to yes   
+#----------------------------------------------------------------------------------------------------------------------------------------------
+### 16- Check if password authentication is set to yes in ssh_config file. If no, set it to yes   
 
 function PASSWORD_7() {
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 PASSWORD_AUTH=`cat /etc/ssh/sshd_config |grep -i ^PasswordAuthentication |awk '{print$2}'`
 if [ "$PASSWORD_AUTH" = "yes" ] 
 then 
-    echo "PasswordAuthentication is already set to yes" >> $LOG
+    echo -e "16- PasswordAuthentication is already set to yes\n" >> $LOG
 elif [ "$PASSWORD_AUTH" = "no" ]
 then 
     sed -i '/PasswordAuthentication no/d' /etc/ssh/sshd_config
     sed -i '/#PermitEmptyPasswords no/a PasswordAuthentication yes' /etc/ssh/sshd_config
     systemctl restart sshd.service
-    echo "PasswordAuthentication was not set to yes and it is now set to yes" >> $LOG
+    echo -e "16- PasswordAuthentication was not set to yes and it is now set to yes\n" >> $LOG
 else
     sed -i '/#PermitEmptyPasswords no/a PasswordAuthentication yes' /etc/ssh/sshd_config
     systemctl restart sshd.service
-    echo "PasswordAuthentication was not set to yes and it is now set to yes" >> $LOG
+    echo -e "16- PasswordAuthentication was not set to yes and it is now set to yes\n" >> $LOG
 fi
 }
 
 function PASSWORD_6() {
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 PASSWORD_AUTH=`cat /etc/ssh/sshd_config |grep -i ^PasswordAuthentication |awk '{print$2}'`
 if [ "$PASSWORD_AUTH" = "yes" ] 
 then 
-    echo "PasswordAuthentication is already set to yes" >> $LOG
+    echo -e "16- PasswordAuthentication is already set to yes\n" >> $LOG
 elif [ "$PASSWORD_AUTH" = "no" ]
 then 
     sed -i '/PasswordAuthentication no/d' /etc/ssh/sshd_config
     sed -i '/#PermitEmptyPasswords no/a PasswordAuthentication yes' /etc/ssh/sshd_config
     service sshd restart
-    echo "PasswordAuthentication was not set to yes and it is now set to yes" >> $LOG
+    echo -e "16- PasswordAuthentication was not set to yes and it is now set to yes\n" >> $LOG
 else
     sed -i '/#PermitEmptyPasswords no/a PasswordAuthentication yes' /etc/ssh/sshd_config
     service sshd restart
-    echo "PasswordAuthentication was not set to yes and it is now set to yes" >> $LOG
+    echo -e "16- PasswordAuthentication was not set to yes and it is now set to yes\n" >> $LOG
 fi
 }
 
@@ -378,11 +590,24 @@ elif [ $OS_VERSION -eq 6 ]
 then
     PASSWORD_6
 else
-    echo -e "15- Please check your OS distribution and version.\n" >> $LOG
+    echo -e "16- Please check your OS distribution and version.\n" >> $LOG
 fi
 
 
-## 16- Check if the password aging is enforced. If not, enforced
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+### 17- Check if the server will require a root for maintenance mode. 
+     #If not, set it to require root password for maintenance mode.
+
+
+
+
+
+
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function PASSWORD_AGING() {
+## 18- Check if the password aging is enforced. If not, enforced
         ##SET PASS_MAX_DAYS TO 90 DAYS
         ##SET PASS_MIN_LEN TO 8
         ##SET PASS_MIN_LEN TO 0
@@ -395,7 +620,7 @@ PASS_WARN_AGE=`cat /etc/login.defs |grep ^PASS_WARN_AGE |awk '{print$2}'`
 
 if [ $PASS_MAX_DAYS -eq 90 ] && [ $PASS_MIN_DAYS -eq 0 ] && [ $PASS_MIN_LEN -eq 8 ] && [ $PASS_WARN_AGE -eq 14 ] > /dev/null 2>&1
 then 
-echo "16- Password aging is already set" >> $LOG
+echo -e "18- Password aging is already set\n" >> $LOG
 else
     sed -i '/^PASS_MAX_DAYS/d' /etc/login.defs
     sed -i '/^PASS_MIN_DAYS/d' /etc/login.defs
@@ -403,19 +628,37 @@ else
     sed -i '/^PASS_WARN_AGE/d' /etc/login.defs
 
     sed -i $"/^# Password aging controls:/aPASS_MAX_DAYS   90\\nPASS_MIN_DAYS   0\\nPASS_MIN_LEN    8\\nPASS_WARN_AGE   14" /etc/login.defs
-    echo "16- Password aging was not set and it now set" >> $LOG
+    echo -e "18- Password aging was not set and it now set\n" >> $LOG
 fi
+}
+#PASSWORD_AGING
 
+
+
+
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
+function GRUB_CENTOS6() {
 ClassLinux!#
-### 17- Check if the grub password is set. If not, set the grub password. The passowrd shoold be "redhat"     
+### 19- Check if the grub password is set. If not, set the grub password. The passowrd shoold be "redhat"     
+
 # grub-crypt: to encrypt the grub password. make the that you encrypt with SHA512
 # vim /etc/grub.conf 
 # password --encrypted end put the encrypted password below hiddenmenu in this file
+
+rm -rf log*
+touch log.$(date +%F)
+LOG=log*
+
 GRUB_PASSWORD=`cat /etc/grub.conf |grep "^password --encrypted" |awk '{print$1}'`
 if [ "$GRUB_PASSWORD" = "password" ]
 then
-    echo "The grub password is already set."
+    echo -e "19- The grub password is already set.\e"
 else
     sed -i '/^hiddenmenu/apassword --encrypted $6$Jdv0vS3HBXAbvY.v$oa9rNZYIQSgQscQZjOeoPHQlIM49qb4Ge0bFCMeWqebMm0vAV9yyB5Rei.8Esyn.3xSXqp09ak1AQG.yTqiXG.' /etc/grub.conf
-    echo "The grub password was not set and it is now set."
+    echo -e "19- The grub password was not set and it is now set.\n"
 fi
+}
+GRUB_CENTOS6
+
+#----------------------------------------------------------------------------------------------------------------------------------------------
