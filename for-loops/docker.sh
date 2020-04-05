@@ -1,16 +1,12 @@
-#!/bin/bash
-DOCKER_PS=`docker ps -a |awk '{print$1}'`
-DOCKER_IMAGES=`docker images |awk '{print$3}'`
+<!DOCTYPE html>
+<html>
+<head>
+<title>Page Title</title>
+</head>
+<body>
 
-#To stop and delete all containers
-for cont in $DOCKER_PS;
-do
-docker stop $cont
-docker rm -f $cont
-done
+<h1>My First Heading</h1>
+<p>My first paragraph.</p>
 
-#Delete all images
-for im in $DOCKER_IMAGES;
-do
-docker rmi -f $im
-done
+</body>
+</html>
