@@ -36,3 +36,8 @@ NGINX: /usr/share/nginx/html/
 TOMCAT: /usr/local/tomcat/webapps/
 
 }
+<<<<<<< HEAD
+=======
+
+hrtf
+>>>>>>> 86285d772f174af0b5259b713d34408978caeee2
