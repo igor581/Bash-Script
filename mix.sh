@@ -36,3 +36,6 @@ NGINX: /usr/share/nginx/html/
 TOMCAT: /usr/local/tomcat/webapps/
 
 }
+
+# docker system prune --all
+
