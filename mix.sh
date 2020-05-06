@@ -73,4 +73,31 @@ yum -y install iptables-services
 systemctl start iptables
 
 
+#!/bin/bash
+sudo -i 
+yum -y install httpd
+systemctl enable httpd
+systemctl restart httpd
+ 
+yum install git -y
+cd /var/www/html
+git clone https://leonardtia57@bitbucket.org/leonardtia57/covid19.git
+cp -r covid19/* .
+rm -rf covid19
+
+
+
+
+#!/bin/bash
+sudo -i 
+yum -y install httpd
+systemctl enable httpd
+systemctl restart httpd
+ 
+yum install git -y
+cd /var/www/html
+git clone https://leonardtia57@bitbucket.org/leonardtia57/qentelli.com.git
+cp -r qentelli.com/* .
+rm -rf qentelli.com
+
 
